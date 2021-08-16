@@ -106,7 +106,7 @@ let approve_reject_new_tokens ((s, rs):storage * approve_reject_new_token_params
   let new_proposals = Big_map.remove rs.proposer s.token_proposals in
   let new_metadatas_ledger = 
     List.fold_left (fun (((acc2, acc3), r):(token_metadata_storage * ledger) * propose_new_token_params) -> 
-      (if Big_map.mem r.token_id acc2 then (failwith "Token already registered":token_metadata_storage) else (if rs.decision then Big_map.add r.token_id ({token_id=r.token_id; token_info=Map.literal[("",r.token_info)]}) acc2 else acc2)),
+      (if rs.decision && Big_map.mem r.token_id acc2 then (failwith "Token already registered":token_metadata_storage) else (if rs.decision then Big_map.add r.token_id ({token_id=r.token_id; token_info=Map.literal[("",r.token_info)]}) acc2 else acc2)),
       (if rs.decision then List.fold_left (fun ((l,(a, n)):ledger * (address * nat)) -> Big_map.add (a, r.token_id) n l) acc3 r.initial_supply else acc3)
     ) (s.token_metadata, s.ledger) proposal in 
   ([]:operation list), {s with token_proposals = new_proposals; token_metadata = new_metadatas_ledger.0; ledger = new_metadatas_ledger.1}
