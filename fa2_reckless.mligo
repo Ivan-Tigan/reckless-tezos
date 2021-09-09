@@ -37,7 +37,7 @@ type fa2_token_sender =
 
 #endif
 
-type migration_status = Waiting | Working | Emigrated of address
+type migration_status = Waiting of address | Working | Emigrated of address
 
 type product = (token_id * nat * nat) list list 
 let seller_items (p:product) = List.fold_left (fun ((acc, ps):(token_id * nat) list * (token_id * nat * nat) list) -> List.fold_left (fun ((acc, (a,b,_)): (token_id * nat) list * (token_id * nat * nat)) -> (a,b)::acc) acc ps ) ([]:(token_id * nat) list) p
@@ -68,6 +68,7 @@ type storage = {
   token_proposals: token_proposals;
   metadata: contract_metadata;
   migration_status:migration_status;
+//  user_metadata: (address, bytes) big_map;
 }
 let can_transfer (ts:transfer list) = List.fold_left (fun ((b, t): bool * transfer) -> b && (Tezos.source = t.from_)) true ts
 let transfer ((s, ts):storage * transfer list) = 
@@ -201,8 +202,9 @@ type fa2_entry_points =
 let main (action, s : fa2_entry_points * storage) : operation list * storage =
   let _ = 
     match action, store.migration_status with 
-    | Initialize _, Waiting -> ()
-    | Emigrate _, Working -> ()
+match action, store.migration_status with 
+    | Initialize _, Waiting a -> if Tezos.sender = a then () else failwith "Invalid immigration address."
+    | Emigrate _, Working -> if Tezos.sender = s.registrar then () else failwith "No permission to emigrate"
     | Initialize _, _ -> failwith "Already initialized"
     | Emigrate _, _ -> failwith "Either not initialized or already migrated"
     | _, Working -> ()

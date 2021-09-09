@@ -1,4 +1,4 @@
-type migration_status = Waiting | Working | Emigrated of address
+type migration_status = Waiting of address | Working | Emigrated of address
 type storage = {data:int; migration_status:migration_status}
 
 type parameter =
@@ -20,8 +20,8 @@ let noop = ([] : operation list)
 let main (action, store : parameter * storage) : return =
  let _ = 
   match action, store.migration_status with 
-  | Initialize _, Waiting -> ()
-  | Emigrate _, Working -> ()
+  | Initialize _, Waiting a -> if Tezos.sender = a then () else failwith "Invalid immigration address."
+  | Emigrate _, Working -> if Tezos.sender = Tezos.sender then () else failwith "No permission to emigrate"
   | Initialize _, _ -> failwith "Already initialized"
   | Emigrate _, _ -> failwith "Either not initialized or already migrated"
   | _, Working -> ()
