@@ -36,9 +36,6 @@ type fa2_token_sender =
 *)
 
 #endif
-
-type migration_status = Waiting | Working | Emigrated of address
-
 type product = (token_id * nat * nat) list list 
 let seller_items (p:product) = List.fold_left (fun ((acc, ps):(token_id * nat) list * (token_id * nat * nat) list) -> List.fold_left (fun ((acc, (a,b,_)): (token_id * nat) list * (token_id * nat * nat)) -> (a,b)::acc) acc ps ) ([]:(token_id * nat) list) p
 type price = (address * token_id * nat)
@@ -67,7 +64,6 @@ type storage = {
   token_metadata: token_metadata_storage;
   token_proposals: token_proposals;
   metadata: contract_metadata;
-  migration_status:migration_status;
 }
 let can_transfer (ts:transfer list) = List.fold_left (fun ((b, t): bool * transfer) -> b && (Tezos.source = t.from_)) true ts
 let transfer ((s, ts):storage * transfer list) = 
@@ -196,18 +192,7 @@ type fa2_entry_points =
   | Post of offer list
   | Bid of (nat * nat) list
   | Finalize of finalize_args
-  | Initialize of storage
-  | Emigrate of address
 let main (action, s : fa2_entry_points * storage) : operation list * storage =
-  let _ = 
-    match action, store.migration_status with 
-    | Initialize _, Waiting -> ()
-    | Emigrate _, Working -> ()
-    | Initialize _, _ -> failwith "Already initialized"
-    | Emigrate _, _ -> failwith "Either not initialized or already migrated"
-    | _, Working -> ()
-    | _, _ -> failwith "Either not initialized or migrated to new version"
-    in
  match action with
  | Transfer t -> let _ = if can_transfer t then () else failwith "FA2_NOT_OWNER" in transfer (s, t)
  | Mint m -> mint (s,m) 
@@ -216,6 +201,4 @@ let main (action, s : fa2_entry_points * storage) : operation list * storage =
  | Post p -> post (s, p)
  | Bid x -> bid (s, x)
  | Finalize f -> finalize (s, (f.seed, f.offer_ids))
- | Initialize s -> noop, s
- | Emigrate a -> (match (Tezos.get_entrypoint_opt "%initialize" a : storage contract option) with Some c -> [Tezos.transaction store 0tez c], {store with migration_status = Emigrated a} | None -> failwith "Invalid destination contract" : return)
  | _ -> failwith "Not implemented"
