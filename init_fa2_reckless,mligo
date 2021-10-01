@@ -1,4 +1,5 @@
-{
+#include "fa2_reckless.mligo"
+let initial_storage = {
   minters = (Big_map.literal [(("tz1Q3v9gjkG8gBHVDtG1aihop3dUVpEkvyUG":address),Set.literal[0n])]:minters);
   registrar = ("tz1Q3v9gjkG8gBHVDtG1aihop3dUVpEkvyUG":address);
   ledger = (Big_map.literal [
@@ -12,7 +13,7 @@
   ]: ledger);
   ah = {
     counter = 0n;
-    price_ids = Set.literal[0n];
+    price_ids = (Set.literal [] : token_type set);
     offers = (Big_map.empty : (nat, offer) big_map); 
   };
   token_metadata = (Big_map.literal [
@@ -29,7 +30,7 @@
   ]:token_metadata_storage);
   token_proposals = (Big_map.empty: token_proposals);
   metadata = (Big_map.literal [(("":string),(0x68747470733a2f2f676973742e67697468756275736572636f6e74656e742e636f6d2f4976616e2d546967616e2f35633531316362646465313838333965666233363531356563613238346130612f7261772f393438323136663937626362343065636235646531366665333263393364336630303266336138372f5265636b6c6573732532353230436f6c6c656374696f6e25323532304d65746164617461: bytes))] :contract_metadata);
-  migration_status = Waiting;
+  migration_status = Working;
 }
 
       // (1001n,
