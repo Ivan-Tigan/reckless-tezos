@@ -39,35 +39,22 @@ type fa2_token_sender =
 
 type migration_status = Waiting of address | Working | Emigrated of address
 type token_type = Fa12 of address | Fa2 of address * token_id | Tez of bool
-type product = (token_id * nat * nat) list list 
-let seller_items (p:product) = List.fold_left (fun ((acc, ps):(token_id * nat) list * (token_id * nat * nat) list) -> List.fold_left (fun ((acc, (a,b,_)): (token_id * nat) list * (token_id * nat * nat)) -> (a,b)::acc) acc ps ) ([]:(token_id * nat) list) p
-type price = (address * token_type * nat)
-type offer = {
-  seller: address; 
-  price: price; 
-  product: product;
-  start_: timestamp;
-  end_: timestamp;
-}
-type auction_house = {
-  counter:nat;
-  price_ids: token_type set;
-  offers: (nat, offer) big_map ; 
-}
+
 type ledger = ((address * nat), nat) big_map
 type minters = (address, token_id set) big_map
 type propose_new_token_params = {token_id: token_id; token_info:bytes; initial_supply:(address * nat) list}
 type approve_reject_new_token_params = {proposer: address; decision: bool} 
 type token_proposals = (address, propose_new_token_params list) big_map 
+
 type storage = {
   minters: minters;
   registrar: address;
   ledger: ledger;
-  ah: auction_house; 
   token_metadata: token_metadata_storage;
   token_proposals: token_proposals;
   metadata: contract_metadata;
   migration_status:migration_status;
+  // item_mods: (token_id, bytes) big_map
 //  user_metadata: (address, bytes) big_map;
 }
 let mk_fa12_transfer_op (a : address) (fa12tr: fa12_transfer) = match (Tezos.get_entrypoint_opt "%transfer" a : fa12_transfer contract option) with Some c -> Tezos.transaction fa12tr 0tez c | _ -> (failwith "Invalid fa1.2 contract" : operation)
@@ -75,7 +62,7 @@ let mk_fa12_transfer_op (a : address) (fa12tr: fa12_transfer) = match (Tezos.get
 let mk_fa2_transfer_op (a:address) (fa2tr: transfer list) = match (Tezos.get_entrypoint_opt "%transfer" a : (transfer list) contract option) with Some c -> Tezos.transaction fa2tr 0tez c | _ -> (failwith "Invalid fa2 contract" : operation)
 // let mk_fa2_transfer_ops (fa2trs:(address * transfer list) list) = List.map mk_fa2_transfer_op fa2trs
 // let mk_transfer_ops ((f12, f2):(address * fa12_transfer) list * (address * transfer list) list) = List.fold_left (fun (acc, f2) -> (mk_fa2_transfer_op f2)::acc) (List.map mk_fa12_transfer_op f12) f2
-let can_transfer (ts:transfer list) = Tezos.sender = Tezos.self_address || List.fold_left (fun ((b, t): bool * transfer) -> b && (Tezos.source = t.from_)) true ts
+let can_transfer (ts:transfer list) = Tezos.sender = Tezos.self_address || List.fold_left (fun ((b, t): bool * transfer) -> b && (Tezos.source = t.from_ || Tezos.sender = t.from_)) true ts
 let transfer ((s, ts):storage * transfer list) = 
   let new_ledger = 
     List.fold_left (fun ((l, t):(ledger * transfer)) -> 
@@ -124,76 +111,6 @@ let propose_new_tokens ((s,rs):storage * propose_new_token_params list) =
   let _ = match Big_map.find_opt Tezos.sender s.token_proposals with Some _ -> failwith "You can make 1 proposal at a time." | _ -> () in 
   ([]:operation list), {s with token_proposals = Big_map.add Tezos.sender rs s.token_proposals}
 
-let post ((s, post_offers):storage * offer list) = 
-  let _ = List.iter (fun (o:offer) -> if o.start_ < Tezos.now || o.end_ < o.start_ then failwith "New offers must start after now and end after they have started." else ()) post_offers in
-  // let _ = List.iter (fun (o:offer) -> if not (Set.mem o.price.1 s.ah.price_ids) then failwith "This is not a registered fungible currency ." else ()) post_offers in
-  let _ = List.iter (fun (o:offer) -> List.iter (fun (ps : (nat*nat*nat) list) -> if 100n = List.fold_left (fun ((acc, p) : nat * (nat*nat*nat)) -> acc+p.2) 0n ps then () else failwith "Probabilities of items in each box must add up to 100.") o.product) post_offers in
-  let _ = List.iter (fun (o:offer) -> List.iter (fun (ps: (nat*nat*nat) list) -> let _ = List.fold_left (fun (((accb,accn), p): (bool*nat) * (nat*nat*nat)) -> if p.2 >= accn then true, p.2 else (failwith "Probabilities of items in each box must be in ascending order.":bool*nat) ) (true,0n) ps in ()) o.product) post_offers in
-  let new_counter_offers = List.fold_left (fun (((i,os),o):(nat * (nat, offer) big_map) * offer) -> i+1n, Big_map.add i o os) (s.ah.counter, s.ah.offers) post_offers in 
-  let new_counter = new_counter_offers.0 in 
-  let new_offers = new_counter_offers.1 in
-  let txs_to_lock = 
-    List.fold_left (fun ((acc, o):transfer_destination list * offer) -> 
-      List.fold_left (fun ((acc, (token_id, n)): transfer_destination list * (token_id * nat )) -> {to_ = Tezos.self_address; token_id = token_id; amount = n}::acc) acc (seller_items o.product)
-    ) ([]:transfer_destination list) post_offers in
-  let s =  {s with ah = {s.ah with offers = new_offers; counter = new_counter}} in
-  [mk_fa2_transfer_op Tezos.self_address [{from_ = Tezos.source; txs = txs_to_lock}]], s
-
-let bid ((s, (offer_id_amts)) : storage * (nat * nat) list) = 
-  let new_offers_transfer =
-    List.fold_left (fun (((acc1,acc2), (offer_id, amt)) : ((nat, offer) big_map * operation list) * (nat * nat)) ->
-    match (Big_map.find_opt offer_id s.ah.offers : offer option) with
-    | Some o ->
-      let _ = if Tezos.source = o.seller then failwith "You cannot bid on your own items." else () in
-      let _ = if o.end_ < Tezos.now then failwith "Bidding period for this auction has passed." else () in
-      if amt > o.price.2 
-      then 
-        (Big_map.add offer_id ({o with price = (Tezos.source, o.price.1, amt)}) acc1), 
-        (match o.price.1 with 
-        | Fa12 a -> (mk_fa12_transfer_op a {from = Tezos.source; to_ = Tezos.self_address; value = amt})::(if o.price.0 <> o.seller then (mk_fa12_transfer_op a {from = Tezos.self_address; to_ = o.price.0; value = o.price.2})::acc2 else acc2)
-        | Fa2 (a,tid) -> (mk_fa2_transfer_op a [{from_ = Tezos.source; txs = [{to_ = Tezos.self_address; token_id = tid; amount = amt}]}])::(if o.price.0 <> o.seller then (mk_fa2_transfer_op a [{from_ = Tezos.self_address; txs = [{to_ = o.price.0; token_id = tid; amount = o.price.2}]}])::acc2 else acc2)
-        | _ -> failwith "Raw Tezos not implemented" : operation list)
-      else (failwith "You must bid higher than the current highest bid." : (nat, offer) big_map * operation list)
-    | _ -> (failwith "Invalid auction house offer id." : (nat, offer) big_map * operation list)
-    ) (s.ah.offers, ([]:operation list)) offer_id_amts  in
-  let s = {s with ah.offers = new_offers_transfer.0} in 
-  new_offers_transfer.1, s
-let next_nat (n:nat) = (22695477n*n+1n) mod (Bitwise.shift_left 2n 32n)
-let finalize ((s, (seed, offer_ids)) : storage * (nat * nat list)) = 
-  let new_offers_txs = 
-    List.fold_left (fun (((acc1,acc2), offer_id) : ((nat, offer) big_map * operation list) * nat) -> 
-      match (Big_map.find_opt offer_id acc1 : offer option) with 
-      | Some o -> 
-        if Tezos.now >= o.end_ 
-        then
-          (Big_map.update offer_id (None:offer option) acc1: (nat, offer) big_map),
-          (mk_fa2_transfer_op Tezos.self_address [{
-            from_ = Tezos.self_address; 
-            txs = 
-              List.fold_left (fun ((acc, p):transfer_destination list * (nat*nat*nat) list) -> 
-              let sum_res = (List.fold_left (fun (((sum, acc), p): (nat*transfer_destination list) * (nat*nat*nat)) -> 
-              if seed mod 100n > sum + p.2 || List.length acc > 0n
-              then sum, acc
-              else
-              sum + p.2,
-              {to_ = o.price.0; 
-              token_id = p.0; 
-              amount = p.1}::acc) (0n, acc) p) in sum_res.1)
-              ([]:transfer_destination list) o.product
-          }])::
-          (if o.price.0 <> o.seller 
-          then 
-            (match o.price.1 with 
-            | Fa2 (a,tid) -> mk_fa2_transfer_op a [{from_ = Tezos.self_address; txs = [{to_ = o.seller; token_id = tid; amount = o.price.2}]}] 
-            | Fa12 a -> mk_fa12_transfer_op a {from = Tezos.self_address; to_ = o.seller; value = o.price.2} 
-            | _ -> (failwith "Tezos not implemented yet" : operation )
-            ) ::acc2
-          else acc2)
-        else (failwith "Offer cannot be finalized yet." : (nat, offer) big_map * operation list)
-      | _ -> (failwith "Offer does not exist" : (nat, offer) big_map * operation list)
-    ) (s.ah.offers, ([]:operation list)) offer_ids in
-  let s = {s with ah.offers = new_offers_txs.0} in
-  new_offers_txs.1, s
 
 type finalize_args = {seed:nat; offer_ids:nat list}
 type fa2_entry_points =
@@ -203,11 +120,9 @@ type fa2_entry_points =
   | Mint of transfer_destination list
   | Propose_tokens of propose_new_token_params list
   | Approve_reject_token_proposal of approve_reject_new_token_params
-  | Post of offer list
-  | Bid of (nat * nat) list
-  | Finalize of finalize_args
   | Initialize of storage
   | Emigrate of address
+  | Modify of storage -> storage
 let main (action, s : fa2_entry_points * storage) : operation list * storage =
   let _ = 
     match action, s.migration_status with 
@@ -223,11 +138,9 @@ let main (action, s : fa2_entry_points * storage) : operation list * storage =
  | Mint m -> mint (s,m) 
  | Propose_tokens x -> propose_new_tokens (s,x)
  | Approve_reject_token_proposal x -> approve_reject_new_tokens (s,x)
- | Post p -> post (s, p)
- | Bid x -> bid (s, x)
- | Finalize f -> finalize (s, (f.seed, f.offer_ids))
  | Initialize s -> ([]:operation list), s
  | Emigrate a -> (match (Tezos.get_entrypoint_opt "%initialize" a : storage contract option) with Some c -> [Tezos.transaction s 0tez c], {s with migration_status = Emigrated a} | None -> failwith "Invalid destination contract" : operation list * storage)
+ | Modify f -> if Tezos.sender = s.registrar then ([]:operation list), f s else (failwith "No permission to modify contract.": operation list * storage)
  | _ -> (failwith "Not implemented":operation list * storage)
 
 
