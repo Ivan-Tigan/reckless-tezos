@@ -11,11 +11,6 @@ let initial_storage = {
     
 
   ]: ledger);
-  ah = {
-    counter = 0n;
-    price_ids = (Set.literal [] : token_type set);
-    offers = (Big_map.empty : (nat, offer) big_map); 
-  };
   token_metadata = (Big_map.literal [
       (0n,
           {

@@ -54,7 +54,9 @@ type storage = {
   token_proposals: token_proposals;
   metadata: contract_metadata;
   migration_status:migration_status;
-  // item_mods: (token_id, bytes) big_map
+  // delegations: (token_id, address option) big_map;
+  //item_level: (token_id, nat) big_map;
+  // powers: (token_id, nat) big_map;
 //  user_metadata: (address, bytes) big_map;
 }
 let mk_fa12_transfer_op (a : address) (fa12tr: fa12_transfer) = match (Tezos.get_entrypoint_opt "%transfer" a : fa12_transfer contract option) with Some c -> Tezos.transaction fa12tr 0tez c | _ -> (failwith "Invalid fa1.2 contract" : operation)

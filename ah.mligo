@@ -10,9 +10,10 @@ type token_type = Fa12 of address | Fa2 of address * token_id | Tez of bool
 let mk_fa12_transfer_op (a : address) (fa12tr: fa12_transfer) = match (Tezos.get_entrypoint_opt "%transfer" a : fa12_transfer contract option) with Some c -> Tezos.transaction fa12tr 0tez c | _ -> (failwith "Invalid fa1.2 contract" : operation)
 let mk_fa2_transfer_op (a:address) (fa2tr: transfer list) = match (Tezos.get_entrypoint_opt "%transfer" a : (transfer list) contract option) with Some c -> Tezos.transaction fa2tr 0tez c | _ -> (failwith "Invalid fa2 contract" : operation)
 
-type fees = nat * (address , nat) map 
+type fees = (address, nat * (address , nat) map) big_map 
 
-let apply_fees_fa2 ((ts, (rem, fs)) : transfer list * fees) = 
+let apply_fees_fa2 ((a, ts, fees) : address * transfer list * fees) = 
+  let (rem, fs) = match Map.find_opt a fees with Some x -> x | _ -> 100n, (Map.empty : (address, nat) map) in
   let fees_total = Map.fold (fun ((acc, (_,n)) : nat * (address * nat)) -> acc + n) fs rem in
   List.map (fun (tr:transfer) -> 
     { tr with 
@@ -29,7 +30,8 @@ let apply_fees_fa2 ((ts, (rem, fs)) : transfer list * fees) =
     })
     ts
 
-let apply_fees_fa12 ((t, (rem, fs)) : fa12_transfer * fees) =
+let apply_fees_fa12 ((a, t, fees) : address * fa12_transfer * fees) =
+  let (rem, fs) = match Map.find_opt a fees with Some x -> x | _ -> 100n, (Map.empty : (address, nat) map) in
   let fees_total = Map.fold (fun ((acc, (_,n)) : nat * (address * nat)) -> acc + n) fs rem in
   let (total_transfer, trds) = 
     Map.fold (fun (((accn, acc), (a,w): (nat * fa12_transfer list) * (address * nat)) ) -> let n = (t.value * w)/fees_total in accn+n, { t with to_ = a; value = n}::acc)
@@ -53,11 +55,14 @@ type auction_house = {
   price_ids: token_type set;
   offers: (nat, offer) big_map ; 
 }
+type migration_status = Waiting of address | Working | Emigrated of address
 type storage = {
+  admin:address;
   fa2:address;
   fees:fees;
   ah:auction_house;
   metadata: contract_metadata;
+  migration_status:migration_status;
 }
 let post ((s, post_offers):storage * offer list) = 
   let _ = List.iter (fun (o:offer) -> if o.start_ < Tezos.now || o.end_ < o.start_ then failwith "New offers must start after now and end after they have started." else ()) post_offers in
@@ -116,8 +121,8 @@ let finalize ((s, (seed, offer_ids)) : storage * (nat * nat list)) =
           (if o.price.0 <> o.seller 
           then 
             (match o.price.1 with 
-            | Fa2 (a,tid) -> (mk_fa2_transfer_op a (apply_fees_fa2 ([{from_ = Tezos.self_address; txs = [{to_ = o.seller; token_id = tid; amount = o.price.2}]}], s.fees ))) :: acc2
-            | Fa12 a -> List.fold_left (fun ((acc, t) : operation list * fa12_transfer) -> (mk_fa12_transfer_op a t)::acc) acc2 (apply_fees_fa12 ({from = Tezos.self_address; to_ = o.seller; value = o.price.2}, s.fees))
+            | Fa2 (a,tid) -> (mk_fa2_transfer_op a (apply_fees_fa2 (a, [{from_ = Tezos.self_address; txs = [{to_ = o.seller; token_id = tid; amount = o.price.2}]}], s.fees ))) :: acc2
+            | Fa12 a -> List.fold_left (fun ((acc, t) : operation list * fa12_transfer) -> (mk_fa12_transfer_op a t)::acc) acc2 (apply_fees_fa12 (a, {from = Tezos.self_address; to_ = o.seller; value = o.price.2}, s.fees))
             | _ -> (failwith "Tezos not implemented yet" : operation list)
             )
           else acc2)
@@ -129,15 +134,33 @@ let finalize ((s, (seed, offer_ids)) : storage * (nat * nat list)) =
 
 
 type finalize_args = {seed:nat; offer_ids:nat list}
-type fa2_entry_points =
+type ah_entry =
   | Post of offer list
   | Bid of (nat * nat) list
   | Finalize of finalize_args
-  
-let main (action, s : fa2_entry_points * storage) : operation list * storage =
+type upgradeable =
+  | Initialize of storage
+  | Emigrate of address
+  | Modify of storage -> storage
+  | Normal of ah_entry
+
+let main (action, s : upgradeable * storage) : operation list * storage =
+ let _ = 
+   match action, s.migration_status with 
+   | Initialize _, Waiting a -> if Tezos.sender = a then () else failwith "Invalid immigration address."
+   | Emigrate _, Working -> if Tezos.sender = s.admin then () else failwith "No permission to emigrate"
+   | Initialize _, _ -> failwith "Already initialized"
+   | Emigrate _, _ -> failwith "Either not initialized or already migrated"
+   | Normal _, Working -> ()
+   | _, _ -> failwith "Either not initialized or migrated to new version"
+   in
  match action with
- | Post t -> post (s, t)
- | Bid bs -> bid (s, bs)
- | Finalize f -> finalize (s, (f.seed, f.offer_ids))
- | _ -> failwith "Not implemented"
+ | Normal(Post t) -> post (s, t)
+ | Normal(Bid bs) -> bid (s, bs)
+ | Normal(Finalize f) -> finalize (s, (f.seed, f.offer_ids))
+
+ | Initialize s -> ([]:operation list), s
+ | Emigrate a -> (match (Tezos.get_entrypoint_opt "%initialize" a : storage contract option) with Some c -> [Tezos.transaction s 0tez c], {s with migration_status = Emigrated a} | None -> failwith "Invalid destination contract" : operation list * storage)
+ | Modify f -> if Tezos.sender = s.admin then ([]:operation list), f s else (failwith "No permission to modify contract.": operation list * storage)
+ | _ -> (failwith "Not implemented": operation list * storage)
 
