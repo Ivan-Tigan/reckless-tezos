@@ -5,17 +5,18 @@ The Docs contain all information about Reckless the game, its features, and how 
 
 Docs: https://ivan-tsoninski.gitbook.io/reckless/
 
-Website: 
+Website: https://higher-order-games.net/index.html 
 
-https://higher-order-games.net/index.html 
+Website repo: https://github.com/RaduMirceaAndrei00/Reckless-Website-NextJs
 
-Website repo:
+Play: https://ivan-tigan.itch.io/reckless
 
-https://github.com/RaduMirceaAndrei00/Reckless-Website-NextJs
 
-Play:
+Test Account:
 
-https://ivan-tigan.itch.io/reckless
+Username: Test
+
+Private Key: edskRtXyHKbF4LGbf6S43RQiN1QNRTYShZpD3mbFiPmQHVAupMJYfTH3x6K9yLhBSjV9jHrxuRdP5CBH16bXqcboBYQrRDMPq6
 
 
 release log:
@@ -24,11 +25,15 @@ Granada:
 
 rex:
 
-KT1HjTaKovPkWC1hUAvKs3ARzsa71aGzHoKM https://better-call.dev/granadanet/KT1HjTaKovPkWC1hUAvKs3ARzsa71aGzHoKM
+KT1HjTaKovPkWC1hUAvKs3ARzsa71aGzHoKM 
+
+https://better-call.dev/granadanet/KT1HjTaKovPkWC1hUAvKs3ARzsa71aGzHoKM
 
 ah:
 
-KT1WcfBQTXZfApnksN34ZjR2mEprVKcKLZVy https://better-call.dev/granadanet/KT1WcfBQTXZfApnksN34ZjR2mEprVKcKLZVy
+KT1WcfBQTXZfApnksN34ZjR2mEprVKcKLZVy 
+
+https://better-call.dev/granadanet/KT1WcfBQTXZfApnksN34ZjR2mEprVKcKLZVy
 
 myst:
 
