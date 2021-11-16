@@ -5,7 +5,7 @@ The Docs contain all information about Reckless the game, its features, and how 
 
 Docs: https://ivan-tsoninski.gitbook.io/reckless/
 
-Website: https://higher-order-games.net/index.html 
+Website: https://higher-order-games.net/
 
 Website repo: https://github.com/RaduMirceaAndrei00/Reckless-Website-NextJs
 
