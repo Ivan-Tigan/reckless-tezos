@@ -7,7 +7,7 @@ Docs: https://ivan-tsoninski.gitbook.io/reckless/
 
 Website: https://higher-order-games.net/
 
-Website repo: https://github.com/RaduMirceaAndrei00/Reckless-Website-NextJs
+Website repo: https://github.com/RaduMirceaAndrei00/Reckless-Website-NextJs  **(Tempple wallet required: https://templewallet.com/download/)**
 
 Play: https://ivan-tigan.itch.io/reckless
 
