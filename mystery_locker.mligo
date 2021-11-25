@@ -11,7 +11,7 @@ type transfer = [@layout:comb] { from_ : address; txs : transfer_destination lis
 let mk_fa12_transfer_op (a : address) (fa12tr: fa12_transfer) = match (Tezos.get_entrypoint_opt "%transfer" a : fa12_transfer contract option) with Some c -> Tezos.transaction fa12tr 0tez c | _ -> (failwith "Invalid fa1.2 contract" : operation)
 let mk_fa2_transfer_op (a:address) (fa2tr: transfer list) = match (Tezos.get_entrypoint_opt "%transfer" a : (transfer list) contract option) with Some c -> Tezos.transaction fa2tr 0tez c | _ -> (failwith "Invalid fa2 contract" : operation)
 
-type locker = {contents: (nat, token_type * nat) map; total_supply:nat; remaining_supply:nat; currency: token_type; base_price:nat; max_price:nat; owner:address}
+type locker = {contents: (token_type * nat) list; total_supply:nat; remaining_supply:nat; currency: token_type; base_price:nat; max_price:nat; owner:address}
 type storage = { lockers:(token_id, locker) big_map; ledger: (address * token_id, nat) big_map; }
 let empty_storage : storage = {lockers = (Big_map.empty : (token_id, locker) big_map); ledger = (Big_map.empty: (address * token_id, nat) big_map)}
 
@@ -19,7 +19,7 @@ let next_nat (n:nat) = (22695477n*n+1n) mod (Bitwise.shift_left 2n 32n)
 
 let lock (s, (i, locker) : storage * (nat * locker)) =
     let (total, (a, txs)) : nat * (address option * transfer_destination list) = 
-      Map.fold (fun ((totalacc, (aopt, ops)), (_,(tok_type, n)) : (nat * (address option * transfer_destination list)) * (nat * (token_type * nat)) ) -> 
+      List.fold_left (fun ((totalacc, (aopt, ops)), (tok_type, n) : (nat * (address option * transfer_destination list)) * (token_type * nat) ) -> 
         totalacc + n, 
         (match tok_type with 
         | Fa2(a,tid) -> 
