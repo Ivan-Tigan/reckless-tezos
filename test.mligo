@@ -1,5 +1,5 @@
 #include "fa2_reckless.mligo"
-#include "init_fa2_reckless,mligo"
+#include "init_fa2_reckless.mligo"
 let test () = 
     let one_day: int = 86_400 in
     let () = Test.reset_state 10n ([]:tez list) in
@@ -50,7 +50,7 @@ let test_migration()  =
     // let () = Test.log (ns.ledger, ns2.ledger) in
     ()
 
-// #include "usd.mligo"
+// // #include "usd.mligo"
 // #include "mystery_locker.mligo"
 // let test_mystery_tokens () = 
 //     let () = Test.reset_state 10n ([]:tez list) in
@@ -73,7 +73,34 @@ let test_migration()  =
 //     let myst_s = Test.get_storage myst_taddr in
 //     let () = Test.log myst_s in 
 //     ()
-    
+
+#include "mystery_locker.mligo"
+let test_mystery = 
+    let () = Test.reset_state 10n ([]:tez list) in
+    let (a1, a2, a3) = (Test.nth_bootstrap_account 1, Test.nth_bootstrap_account 2, Test.nth_bootstrap_account 3) in
+    let (rex_taddr, _,_) = Test.originate main { initial_storage with registrar = a2; ledger = (Big_map.literal [(a1,0n), 200n; (a1,1000n), 1n; (a1, 1001n), 1n] : ((address * nat), nat) big_map) ; } 0tez in
+    let rex_contr = Test.to_contract rex_taddr in
+    let rex_addr = Tezos.address rex_contr in
+    let (myst_taddr, _,_) = Test.originate MysteryTokenLocker.main MysteryTokenLocker.empty_storage 0tez in
+    let myst_contr = Test.to_contract myst_taddr in
+    let () = Test.set_source a1 in
+    let unshuffled = [1000n, 1n] in
+    let shuffled = [1000n, 1n] in
+    let byted = (0x050200000007070700a80f0001:bytes) in
+    // let shuffled_hash = Crypto.blake2b (byted) in 
+    let shuffled_hash = (0x6c12407121c42803dc0403beb78885978ca75117a53838488579e7b06b0462ea: bytes) in 
+    let () = Test.transfer_to_contract_exn myst_contr (Lock (5n, {contents = [1000n,1n]; total = 1n; fa2_address = rex_addr; admin=a1; shuffle_hash = shuffled_hash})) 0tez in
+    let myst_s = Test.get_storage myst_taddr in
+    let rex_s = Test.get_storage rex_taddr in
+    let () = Test.log ("myst: ", myst_s) in
+    let () = Test.log ("rex: ", rex_s.ledger) in
+    let () = Test.transfer_to_contract_exn myst_contr (Redeem (shuffled, 5n, [a1])) 0tez in
+    let myst_s = Test.get_storage myst_taddr in
+    let rex_s = Test.get_storage rex_taddr in
+    let () = Test.log ("myst: ", myst_s) in
+    let () = Test.log ("rex: ", rex_s.ledger) in
+
+    ()
 
 
 #include "dutest.mligo"
@@ -91,7 +118,8 @@ let test_du () =
     let () = Test.log ns2 in
     ()
 #include "helpers.mligo"
-let test_poly = 
+
+let test_helpers ()= 
     let xs = [5;10;20] in
     let ys = ListHelpers.bind (fun (x:int) -> [x;x]) xs in
     let zs = ListHelpers.mapi (fun (i:nat) (x:int) -> x+i) xs in
@@ -100,5 +128,10 @@ let test_poly =
     let () = Test.log zs in
     let () = Test.log x2 in
     let () = Test.log (ListHelpers.concat [1;2;3] [4;5;6]) in
-    // let () = Test.log ("err monad", run_res) in
+    let many = ListHelpers.init 5000n (identity: nat -> nat) in
+    // let () = Test.log many in
+    let () = Test.log (ListHelpers.take_exact_rev_map 3n (identity:nat->nat) many) in
+    let () = Test.log ("try remove", ListHelpers.try_remove 5n [4;5;6]) in
+    // let () = Test.log run_res in
     ()
+
