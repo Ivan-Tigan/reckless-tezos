@@ -40,7 +40,10 @@ module ListHelpers = struct
     let contains (eq: _a -> _a -> bool) (x:_a) (xs:_a list) : bool = List.fold_left (fun (acc, y : bool * _a) -> acc || eq x y) false xs
 end
 
-
+module BigMapHelpers = struct 
+    let change (k:address*token_id) (fs: nat -> nat option) (ff: nat option) (m:((address*token_id), nat) big_map) = 
+        Big_map.update k (match (Big_map.find_opt k m) with Some v -> fs v | _ -> ff) m 
+end
 // let ok (x:_a) (s: _a -> _b) (_f: string -> _b) : _b = s x 
 // let err (msg:string) (_s: _a -> _b) (f: string -> _b) : _b = f msg
 // let bind 

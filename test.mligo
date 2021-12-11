@@ -86,8 +86,9 @@ let test_mystery =
     let () = Test.set_source a1 in
     let unshuffled = [1000n, 1n] in
     let shuffled = [1000n, 1n] in
+    //let byted = Bytes.pack shuffled in
+    //let shuffled_hash = Crypto.sha3 (byted) in 
     let byted = (0x050200000007070700a80f0001:bytes) in
-    // let shuffled_hash = Crypto.blake2b (byted) in 
     let shuffled_hash = (0x6c12407121c42803dc0403beb78885978ca75117a53838488579e7b06b0462ea: bytes) in 
     let () = Test.transfer_to_contract_exn myst_contr (Lock (5n, {contents = [1000n,1n]; total = 1n; fa2_address = rex_addr; admin=a1; shuffle_hash = shuffled_hash})) 0tez in
     let myst_s = Test.get_storage myst_taddr in

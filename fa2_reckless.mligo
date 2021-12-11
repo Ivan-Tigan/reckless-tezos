@@ -84,4 +84,3 @@ let main (action, s : fa2_entry_points * storage) : operation list * storage =
  | _ -> (failwith "Not implemented":operation list * storage)
 
 
-type token_type = Fa12 of address | Fa2 of address * token_id | Tez of bool

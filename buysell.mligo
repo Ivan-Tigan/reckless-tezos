@@ -17,6 +17,8 @@
 //       lockers = Big_map.add tid {locker with remaining_supply = abs(locker.remaining_supply - n)} s.lockers;
 //     }
 //   ) (([]:operation list), s) xs
+type locker = {remaining_supply:nat; total_supply:nat; base_price: nat; max_price; currency:token_type; owner:address}
+type storage = {lockers:(nat * locker) big_map}
 let buy (s, xs : storage * (nat * nat) list) =
   List.fold_left (fun (((ops, s), (tid, n)): (operation list * storage) * (token_id * nat)) -> 
     let locker : locker =  match Big_map.find_opt tid s.lockers with | None -> (failwith "Tokens not available.") | Some l -> l in

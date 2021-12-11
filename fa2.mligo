@@ -64,3 +64,39 @@ let mk_fa12_transfer_op (a : address) (fa12tr: fa12_transfer) = match (Tezos.get
 let mk_fa2_transfer_op (a:address) (fa2tr: transfer list) = match (Tezos.get_entrypoint_opt "%transfer" a : (transfer list) contract option) with Some c -> Tezos.transaction fa2tr 0tez c | _ -> (failwith "Invalid fa2 contract" : operation)
 // let mk_fa2_transfer_ops (fa2trs:(address * transfer list) list) = List.map mk_fa2_transfer_op fa2trs
 // let mk_transfer_ops ((f12, f2):(address * fa12_transfer) list * (address * transfer list) list) = List.fold_left (fun (acc, f2) -> (mk_fa2_transfer_op f2)::acc) (List.map mk_fa12_transfer_op f12) f2
+
+type fees = (address, nat * (address , nat) map) big_map 
+
+let apply_fees_fa2 ((a, ts, fees) : address * transfer list * fees) = 
+  let (rem, fs) = match Map.find_opt a fees with Some x -> x | _ -> 100n, (Map.empty : (address, nat) map) in
+  let fees_total = Map.fold (fun ((acc, (_,n)) : nat * (address * nat)) -> acc + n) fs rem in
+  List.map (fun (tr:transfer) -> 
+    { tr with 
+    txs = 
+      List.fold_left (fun ((acc, trd) : transfer_destination list * transfer_destination) -> 
+        let (total_transfer, trds) = 
+          Map.fold (fun (((accn, acc), (a,w): (nat * transfer_destination list) * (address * nat)) ) -> let n = (trd.amount * w)/fees_total in accn+n, {to_ = a; token_id = trd.token_id; amount = n}::acc)
+          (Map.add trd.to_ (match Map.find_opt trd.to_ fs with Some n -> n + rem | _ -> rem) fs)
+          (0n, acc) in 
+        {trd with amount = if trd.amount >= total_transfer then abs(trd.amount - total_transfer) else (failwith "critical error" : nat)} :: trds 
+        ) 
+      ([]:transfer_destination list) 
+      tr.txs 
+    })
+    ts
+
+let apply_fees_fa12 ((a, t, fees) : address * fa12_transfer * fees) =
+  let (rem, fs) = match Map.find_opt a fees with Some x -> x | _ -> 100n, (Map.empty : (address, nat) map) in
+  let fees_total = Map.fold (fun ((acc, (_,n)) : nat * (address * nat)) -> acc + n) fs rem in
+  let (total_transfer, trds) = 
+    Map.fold (fun (((accn, acc), (a,w): (nat * fa12_transfer list) * (address * nat)) ) -> let n = (t.value * w)/fees_total in accn+n, { t with to_ = a; value = n}::acc)
+    (Map.add t.to_ (match Map.find_opt t.to_ fs with Some n -> n + rem | _ -> rem) fs)
+    (0n, ([]:fa12_transfer list)) in 
+  {t with value = if t.value >= total_transfer then abs(t.value - total_transfer) else (failwith "critical error" : nat)} :: trds 
+
+// type revenue_share = (address, nat) map
+// let fa12_rev_share (rs, from, token_address, n : revenue_share * address * address * nat) = 
+//   let total_shares = Map.fold (fun (acc, (k,v) : nat * (address * nat)) -> acc + v) rs 0n in 
+//   let txs = Map.fold (fun (acc, (k,v) : operation list * (address * nat)) -> mk_fa12_transfer_op token_address {from=from; to_=k; value= } )
+
+type token_type = Fa12 of address | Fa2 of address * token_id | Tez of bool

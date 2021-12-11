@@ -4,7 +4,7 @@ module MysteryTokenLocker = struct
 
 type locker = {contents : (token_id * nat) list; admin: address; shuffle_hash:bytes; total:nat; fa2_address:address}
 type storage = { lockers:(token_id, locker) big_map; ledger: (address * token_id, nat) big_map;metadata:contract_metadata; token_metadata: token_metadata_storage}
-let empty_storage : storage = {lockers = (Big_map.empty : (token_id, locker) big_map); ledger = (Big_map.empty: (address * token_id, nat) big_map); metadata = Big_map.empty:contract_metadata; token_metadata= Big_map.empty:token_metadata_storage}
+let empty_storage : storage = {lockers = (Big_map.empty : (token_id, locker) big_map); ledger = (Big_map.empty: (address * token_id, nat) big_map); metadata = (Big_map.empty:contract_metadata); token_metadata= (Big_map.empty:token_metadata_storage)}
 
 let lock (s, (i, locker) : storage * (nat * locker)) =
     let () = if locker.admin = Tezos.sender then () else failwith "Locker admin different from sender." in

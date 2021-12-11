@@ -65,3 +65,6 @@ let initial_storage = {
 //KT1L8WURwm37hWFhrZefDd9tboJowdkQv1LB
 //KT1Mw7E46UuQk62imBoYzTSUCpuz3LLXZ7qo
 
+let empty_storage = {
+  
+}
