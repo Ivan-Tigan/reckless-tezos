@@ -67,3 +67,9 @@ end
 //   ))
 
 // let run_res : int = res () (identity: int -> int) (fun (msg:string) -> (failwith msg : int))
+
+// type meta_sec = {counter:nat; pub:address; chain_id:chain_id}
+// type meta = {meta_txn_data:bytes; sig:signature; }
+// let verify_meta_txn (m:meta) : _a = 
+//     let meta_sec, ep = match Bytes.unpack m.meta_txn_data : (meta_sec * _a) option with Some x -> x | _ -> "Failed to unpack meta txn." in 
+//     if Crypto.check meta_sec.pub m.sig Crypto,blake2b(m.meta_txn_data) then ep else (failwith "Invalid signature." : _a)

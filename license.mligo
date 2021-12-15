@@ -9,11 +9,13 @@ type storage = {
     ledger: ledger;
 }
 
-let initial_storage = {
-    nft_address=("":address);
+let mk_storage (nft_address:address) = {
+    nft_address=nft_address;
     license_shop=(Big_map.empty: (token_id, license_shop) big_map);
     ledger=(Big_map.empty:ledger);
 }
+let s1 = mk_storage ("KT1PU8heQfiWgHj3Jpc1xYyE72NGGmW7L6pc":address)
+
 
 type purchase_params = { tid: token_id; token_type : token_type; recipient: address }
 

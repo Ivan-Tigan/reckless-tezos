@@ -42,3 +42,9 @@ myst:
 KT1F5LHWuBuJL8TDccehZAaQjLFjdyRHHkd3
 
 https://better-call.dev/granadanet/KT1F5LHWuBuJL8TDccehZAaQjLFjdyRHHkd3/operations 
+
+blade:
+https://better-call.dev/granadanet/KT1PU8heQfiWgHj3Jpc1xYyE72NGGmW7L6pc/operations
+
+license_blade:
+https://better-call.dev/granadanet/KT1MiowoLLvCG91KiyNdL5MZnbbnVrDHJrP3/operations 

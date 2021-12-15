@@ -65,6 +65,37 @@ let initial_storage = {
 //KT1L8WURwm37hWFhrZefDd9tboJowdkQv1LB
 //KT1Mw7E46UuQk62imBoYzTSUCpuz3LLXZ7qo
 
-let empty_storage = {
+let mk_storage (zero_md:bytes) (md:bytes) = {
+  minters = (Big_map.literal [(("tz1Q3v9gjkG8gBHVDtG1aihop3dUVpEkvyUG":address),Set.literal[0n])]:minters);
+  registrar = ("tz1Q3v9gjkG8gBHVDtG1aihop3dUVpEkvyUG":address);
+  ledger = (Big_map.literal [
+    ((("tz1Q3v9gjkG8gBHVDtG1aihop3dUVpEkvyUG":address), 0n), 1000n);
+    ((("tz1YVUusb9uyHm58zsGi61EczuzvA2iMKy86":address), 0n), 1000n);
+    ((("tz1WFmjWK4tetwFYBee16AeH4gqoEGkvTkfe":address), 0n), 1000n);
+    ((("tz1iB6F57gdZczmAxctZDRHsjaEwDbzZTnYy":address), 0n), 1000n);
+    ((("tz1abwEWbK7NZX1GKvsso9B3g3z4kRVSA9ri":address), 0n), 1000n);
+    
+
+  ]: ledger);
+  token_metadata = (Big_map.literal [
+      (0n,
+          {
+            token_id=0n;
+            token_info = 
+                Map.literal 
+                [
+                    (("":string), zero_md)
+                ]
+          }
+        );
+  ]:token_metadata_storage);
+  token_proposals = (Big_map.empty: token_proposals);
+  metadata = (Big_map.literal [(("":string),(md: bytes))] :contract_metadata);
+  migration_status = Working;
   
 }
+
+let blade = 
+  mk_storage 
+    (0x68747470733a2f2f676973742e67697468756275736572636f6e74656e742e636f6d2f4976616e2d546967616e2f33353831326135656131383636336364346462343164343863666266373364642f7261772f:bytes)
+    (0x68747470733a2f2f676973742e67697468756275736572636f6e74656e742e636f6d2f4976616e2d546967616e2f66383634333530326435313538323465376334313938333365303636383639302f7261772f:bytes)
